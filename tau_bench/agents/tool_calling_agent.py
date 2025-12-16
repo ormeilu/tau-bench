@@ -37,13 +37,26 @@ class ToolCallingAgent(Agent):
             {"role": "user", "content": obs},
         ]
         for _ in range(max_num_steps):
-            res = completion(
-                messages=messages,
-                model=self.model,
-                custom_llm_provider=self.provider,
-                tools=self.tools_info,
-                temperature=self.temperature,
-            )
+            try:
+                res = completion(
+                    messages=messages,
+                    model=self.model,
+                    custom_llm_provider=self.provider,
+                    tools=self.tools_info,
+                    temperature=self.temperature,
+                )
+            except Exception as e:
+                # Add contextual information to aid debugging when LLM provider
+                # calls fail (e.g. BadRequestError / provider-specific errors).
+                # We re-raise with extra context but preserve original traceback.
+                provider = getattr(self, "provider", None)
+                model = getattr(self, "model", None)
+                tools_count = len(self.tools_info) if self.tools_info is not None else 0
+                msg = (
+                    f"LLM completion failed (provider={provider!r}, model={model!r}, "
+                    f"tools_count={tools_count}): {e!s}"
+                )
+                raise RuntimeError(msg) from e
             next_message = res.choices[0].message.model_dump()
             total_cost += res._hidden_params["response_cost"] or 0
             action = message_to_action(next_message)

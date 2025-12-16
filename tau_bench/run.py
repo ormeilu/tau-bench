@@ -30,6 +30,9 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}_{time_str}.json"
     if not os.path.exists(config.log_dir):
         os.makedirs(config.log_dir)
+    # Ensure the checkpoint directory exists (defensive: handle nested log dirs)
+    ckpt_dir = os.path.dirname(ckpt_path) or config.log_dir
+    os.makedirs(ckpt_dir, exist_ok=True)
 
     print(f"Loading user with strategy: {config.user_strategy}")
     env = get_env(
@@ -105,8 +108,14 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                 if os.path.exists(ckpt_path):
                     with open(ckpt_path, "r") as f:
                         data = json.load(f)
-                with open(ckpt_path, "w") as f:
-                    json.dump(data + [result.model_dump()], f, indent=2)
+                # Defensive: ensure checkpoint directory exists before writing
+                os.makedirs(os.path.dirname(ckpt_path) or config.log_dir, exist_ok=True)
+                try:
+                    with open(ckpt_path, "w") as f:
+                        json.dump(data + [result.model_dump()], f, indent=2)
+                except FileNotFoundError:
+                    # If we still can't write, raise a clearer error message
+                    raise FileNotFoundError(f"Could not write checkpoint file: {ckpt_path}")
             return result
 
         with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:

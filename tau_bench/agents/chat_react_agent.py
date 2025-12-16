@@ -37,12 +37,22 @@ class ChatReActAgent(Agent):
     def generate_next_step(
         self, messages: List[Dict[str, Any]]
     ) -> Tuple[Dict[str, Any], Action, float]:
-        res = completion(
-            model=self.model,
-            custom_llm_provider=self.provider,
-            messages=messages,
-            temperature=self.temperature,
-        )
+        try:
+            res = completion(
+                model=self.model,
+                custom_llm_provider=self.provider,
+                messages=messages,
+                temperature=self.temperature,
+            )
+        except Exception as e:
+            provider = getattr(self, "provider", None)
+            model = getattr(self, "model", None)
+            tools_count = len(self.tools_info) if getattr(self, "tools_info", None) is not None else 0
+            msg = (
+                f"LLM completion failed (provider={provider!r}, model={model!r}, "
+                f"tools_count={tools_count}): {e!s}"
+            )
+            raise RuntimeError(msg) from e
         message = res.choices[0].message
         action_str = message.content.split("Action:")[-1].strip()
         try:

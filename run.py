@@ -1,11 +1,20 @@
 # Copyright Sierra
 
+import os
 import argparse
 from tau_bench.types import RunConfig
 from tau_bench.run import run
+import litellm
 from litellm import provider_list
 from tau_bench.envs.user import UserStrategy
 
+from dotenv import load_dotenv
+load_dotenv()
+
+#TODO: make this as an argument flag?
+#litellm.log_raw_request_response = True
+#litellm._turn_on_debug()
+#litellm.callbacks.append("langfuse_otel")
 
 def parse_args() -> RunConfig:
     parser = argparse.ArgumentParser()
